@@ -1,0 +1,75 @@
+package com.qbitspark.sms_catch;
+
+import android.content.Context;
+import android.util.Log;
+
+
+import androidx.annotation.NonNull;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+
+public class ApiClient {
+
+    private static final String TAG = "ApiClient";
+    private static final String API_ENDPOINT = "https://onepostz.xyz/api/callback/message";
+    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+    private static final OkHttpClient client = new OkHttpClient();
+
+    public static void sendMessage(final Context context, final MessageData messageData) {
+        try {
+            // Create JSON payload
+            JSONObject jsonPayload = new JSONObject();
+            jsonPayload.put("sender", messageData.getSender());
+            jsonPayload.put("message", messageData.getMessageBody());
+            jsonPayload.put("timestamp", messageData.getTimestamp());
+
+            RequestBody body = RequestBody.create(jsonPayload.toString(), JSON);
+            Request request = new Request.Builder()
+                    .url(API_ENDPOINT)
+                    .post(body)
+                    .build();
+
+            Log.d(TAG, "Sending message: " + jsonPayload.toString());
+
+
+            // Make the API call
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                    Log.e(TAG, "Failed to send message: " + e.getMessage());
+                    // Leave in database for sync worker to try later
+                }
+
+                @Override
+                public void onResponse(@NonNull Call call, @NonNull Response response)  {
+                    if (response.isSuccessful()) {
+                        Log.d(TAG, "Message sent successfully: " + messageData.getId());
+
+                        // Delete from database after successful send
+                        new Thread(() -> {
+                            MessageDatabase database = MessageDatabase.getInstance(context);
+                            database.messageDao().deleteMessage(messageData.getId());
+                        }).start();
+                    } else {
+                        Log.e(TAG, "API error: " + response.code() + " - " + response.message());
+                        // Leave in database for sync worker to try later
+                    }
+                }
+            });
+
+        } catch (JSONException e) {
+            Log.e(TAG, "JSON error: " + e.getMessage());
+        }
+    }
+}

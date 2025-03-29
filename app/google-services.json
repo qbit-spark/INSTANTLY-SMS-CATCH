@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "952837423383",
+    "project_id": "killswitch-sms-cather",
+    "storage_bucket": "killswitch-sms-cather.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:952837423383:android:0e599da1f39333d3573752",
+        "android_client_info": {
+          "package_name": "com.qbitspark.sms_catch"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDooB8ZBBbq9nKyrWWhy7y5z2zklTHQPVQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
