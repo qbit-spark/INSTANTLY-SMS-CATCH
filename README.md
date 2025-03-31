@@ -1,16 +1,21 @@
-# JSON Structure for SMS Message Data
+## Download Latest Release
+📦 **Latest Version**: [v1.0.2](https://github.com/qbit-spark/INSTANTLY-SMS-CATCH/releases/tag/v1.0.2)  
+🔔 *Check releases page for updates and changelog*
 
-## Overview
-It supports dynamic fields in `deviceDetails`, allowing flexibility for changing device attributes.
+---
 
-## JSON Structure (request body example)
+## JSON Structure for SMS Message Data
+
+This service captures SMS messages along with comprehensive device information. The `deviceDetails` object supports dynamic fields, allowing flexibility for changing device attributes.
+
+### Sample Request Body
 ```json
 [
   {
     "branchId": "1234",
     "sender": "KIBUTI BOT",
     "message": "Karibu Trimness security, tukufanyie usafi mzuri",
-    "timestamp": "+57216-07-02T08:20:00Z",
+    "timestamp": "2023-07-02T08:20:00Z",
     "deviceDetails": {
       "hardwareDetails": {
         "model": "Pixel 4a",
@@ -60,55 +65,48 @@ It supports dynamic fields in `deviceDetails`, allowing flexibility for changing
 ]
 ```
 
-## Field Descriptions
-### **Root Level Fields**
-- `branchId`: (String) The branch identifier where the message originates.
-- `sender`: (String) Name of the message sender.
-- `message`: (String) SMS message content.
-- `timestamp`: (String) The date and time when the message was sent.
+---
 
-### **deviceDetails** (Dynamic Object)
-Contains information about the device sending the SMS. This structure can change over time, as fields may be added or removed dynamically.
+## Field Reference
 
-#### **hardwareDetails**
-- `model`: (String) Model of the device.
-- `manufacturer`: (String) Device manufacturer.
-- `device`: (String) Internal device name.
-- `screenResolution`: (String) Screen resolution in pixels.
-- `screenDensity`: (Integer) Screen density in DPI.
-- `totalRam`: (String) Total RAM available.
-- `availableRam`: (String) Free RAM available.
-- `totalStorage`: (String) Total internal storage.
-- `availableStorage`: (String) Available storage space.
-- `cpuModel`: (String) CPU model of the device.
-- `processorCores`: (Integer) Number of processor cores.
+### Message Metadata
+| Field       | Type   | Description                          | Example                    |
+|-------------|--------|--------------------------------------|----------------------------|
+| `branchId`  | String | Branch identifier                   | "1234"                     |
+| `sender`    | String | Name of message sender              | "KIBUTI BOT"               |
+| `message`   | String | SMS message content                 | "Karibu Trimness security" |
+| `timestamp` | String | ISO-8601 formatted timestamp        | "2023-07-02T08:20:00Z"     |
 
-#### **androidVersionDetails**
-- `androidVersion`: (String) Android OS version.
-- `apiLevel`: (Integer) API level of the Android OS.
-- `securityPatch`: (String) Date of the latest security patch.
-- `kernelVersion`: (String) Kernel version running on the device.
-- `buildId`: (String) OS build identifier.
-- `buildTime`: (Long) Timestamp of when the build was created.
-- `fingerprint`: (String) Device fingerprint identifier.
+### Device Details
+#### Hardware Information
+- `model`, `manufacturer`: Device make and model
+- `screen*`: Display characteristics
+- `*Ram`, `*Storage`: Memory metrics
+- `cpu*`: Processor information
 
-#### **deviceIdentifiers**
-- `androidId`: (String) Unique Android ID of the device.
-- `imei`: (String) IMEI number (if permission is granted).
-- `serialNumber`: (String) Device serial number (if permission is granted).
-- `macAddress`: (String) MAC address of the device.
+#### Android Version
+- `androidVersion`: Human-readable version
+- `apiLevel`: SDK version
+- `securityPatch`: Patch date
+- `build*`: Build identifiers
 
-#### **networkInformation**
-- `connected`: (Boolean) Whether the device is connected to a network.
-- `connectionType`: (String) Type of network (e.g., WiFi, Mobile Data).
-- `ipAddress`: (String) IP address of the device.
+#### Identifiers
+⚠️ *Note: Many identifiers require special permissions on modern Android versions*
+- `androidId`: Persistent but resettable ID
+- `imei`, `serialNumber`: Often restricted
+- `macAddress`: Returns generic value on Android 10+
 
-#### **batteryInformation**
-- `chargingStatus`: (String) Charging status (e.g., Charging, Full).
-- `batteryLevel`: (String) Current battery percentage.
-- `batteryHealth`: (String) Battery health status.
-- `batteryTemperature`: (String) Battery temperature in Celsius.
+#### Network Status
+- Current connection type and IP address
 
-## Notes
-- The `deviceDetails` section is dynamic and can change over time. Any additional fields not listed here may still be received and stored.
+#### Battery Status
+- Charge level, health, and temperature
 
+---
+
+## Important Notes
+1. **Dynamic Fields**: The `deviceDetails` object may contain additional fields not documented here
+2. **Android Restrictions**: 
+   - Many device identifiers are restricted on Android 10+
+   - Requires `READ_PHONE_STATE` and other permissions
+---
