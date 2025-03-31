@@ -1,4 +1,5 @@
-## Download Latest Release
+## Download Latest Release APK
+
 📦 **Latest Version**: [v1.0.2](https://github.com/qbit-spark/INSTANTLY-SMS-CATCH/releases/tag/v1.0.2)  
 🔔 *Check releases page for updates and changelog*
 
@@ -102,7 +103,6 @@ This service captures SMS messages along with comprehensive device information. 
 #### Battery Status
 - Charge level, health, and temperature
 
----
 
 ## Important Notes
 1. **Dynamic Fields**: The `deviceDetails` object may contain additional fields not documented here
