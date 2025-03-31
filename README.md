@@ -39,21 +39,21 @@ This service captures SMS messages along with comprehensive device information. 
         "androidVersion": "13",
         "apiLevel": 33,
         "securityPatch": "2023-08-05",
-        "kernelVersion": "4.14.302-g92e0d94b6cba",
-        "buildId": "TQ3A.230805.001.S2",
+        "kernelVersion": "********",
+        "buildId": "********",
         "buildTime": 1731578876000,
-        "fingerprint": "google/sunfish/sunfish:13/TQ3A.230805.001.S2/12655424:user/release-keys"
+        "fingerprint": "********"
       },
       "deviceIdentifiers": {
-        "androidId": "4110b69313cbb12f",
+        "androidId": "********",
         "imei": "Permission not granted",
         "serialNumber": "Permission not granted",
-        "macAddress": "02:00:00:00:00:00"
+        "macAddress": "********"
       },
       "networkInformation": {
         "connected": true,
         "connectionType": "WIFI",
-        "ipAddress": "fe80::ce89:7940:fa40:6470%rmnet_data0"
+        "ipAddress": "********"
       },
       "batteryInformation": {
         "chargingStatus": "Full",
