@@ -15,6 +15,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -27,7 +31,7 @@ import okhttp3.Response;
 public class ApiClient {
 
     private static final String TAG = "ApiClient";
-    //private static final String API_ENDPOINT = "http://192.168.1.4:8080/messages";
+    //private static final String API_ENDPOINT = "http://10.39.110.228:8080/messages";
     private static final String API_ENDPOINT = "https://onepostz.xyz/api/callback/message";
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
     private static final OkHttpClient client = new OkHttpClient();
@@ -75,6 +79,7 @@ public class ApiClient {
                         // Leave in database for sync worker to try later
                     }
                 }
+
             });
 
         } catch (JSONException e) {
@@ -92,7 +97,14 @@ public class ApiClient {
         jsonPayload.put("branchId", savedBranchId);
         jsonPayload.put("sender", messageData.getSender());
         jsonPayload.put("message", messageData.getMessageBody());
-        jsonPayload.put("timestamp", messageData.getTimestamp());
+
+        // Current time in ISO 8601 format
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        String currentTimestamp = sdf.format(new Date()); // Gets current time
+
+        jsonPayload.put("timestamp", currentTimestamp);
+
         jsonPayload.put("deviceDetails", deviceDetailsCollector.getAllDeviceDetailsJson());
         return jsonPayload;
     }
