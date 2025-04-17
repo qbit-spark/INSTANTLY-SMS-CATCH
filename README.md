@@ -11,7 +11,7 @@ This service captures SMS messages along with comprehensive device information. 
 
 ### Sample Request Body
 ```json
-[
+
   {
     "branchId": "1234",
     "sender": "KIBUTI BOT",
@@ -63,7 +63,7 @@ This service captures SMS messages along with comprehensive device information. 
       }
     }
   }
-]
+
 ```
 
 ---
