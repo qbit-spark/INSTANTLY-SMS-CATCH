@@ -35,8 +35,8 @@ public class SmsListenerService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         // Create notification
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("SMS Monitoring")
-                .setContentText("Listening for SMS messages")
+                .setContentTitle("Textify")
+                .setContentText("Textify")
                 .setSmallIcon(R.drawable.ic_notification) // Make sure you have this icon
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .build();

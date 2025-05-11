@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">SMS-Catch</string>
+    <string name="app_name">Textify</string>
     <string name="sms_listener_running_in_background">Everything works as expected!</string>
 </resources>
