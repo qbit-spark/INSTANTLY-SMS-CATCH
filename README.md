@@ -1,6 +1,6 @@
 ## Download Latest Release APK
 
-📦 **Latest Version**: [v1.0.4](https://github.com/qbit-spark/INSTANTLY-SMS-CATCH/releases/tag/v1.0.4)  
+📦 **Latest Version**: [v1.0.5](https://github.com/qbit-spark/INSTANTLY-SMS-CATCH/releases/tag/v1.0.5)  
 🔔 *Check releases page for updates and changelog*
 
 ---
