@@ -9,6 +9,7 @@ import android.telephony.SmsMessage;
 import android.util.Log;
 
 public class SmsReceiver extends BroadcastReceiver {
+
     private static final String TAG = "SmsReceiver";
     private static final String SMS_RECEIVED = "android.provider.Telephony.SMS_RECEIVED";
 
@@ -24,19 +25,28 @@ public class SmsReceiver extends BroadcastReceiver {
                     // Create a MessageData object
                     final MessageData messageData = new MessageData();
 
+                    // Initialize variables to store concatenated message
+                    StringBuilder fullMessage = new StringBuilder();
+                    String sender = null;
+                    long timestamp = 0;
+
                     for (Object pdu : pdus) {
                         SmsMessage smsMessage = SmsMessage.createFromPdu((byte[]) pdu);
 
-                        // Extract message details
-                        String sender = smsMessage.getOriginatingAddress();
-                        String messageBody = smsMessage.getMessageBody();
-                        long timestamp = smsMessage.getTimestampMillis();
+                        // Get sender and timestamp from first PDU
+                        if (sender == null) {
+                            sender = smsMessage.getOriginatingAddress();
+                            timestamp = smsMessage.getTimestampMillis();
+                        }
 
-                        // Set message data
-                        messageData.setSender(sender);
-                        messageData.setMessageBody(messageBody);
-                        messageData.setTimestamp(timestamp);
+                        // Concatenate message bodies from all PDUs
+                        fullMessage.append(smsMessage.getMessageBody());
                     }
+
+                    // Set the complete message data
+                    messageData.setSender(sender);
+                    messageData.setMessageBody(fullMessage.toString());
+                    messageData.setTimestamp(timestamp);
 
                     // Start the service and pass the message data
                     Intent serviceIntent = new Intent(context, SmsListenerService.class);
@@ -50,6 +60,7 @@ public class SmsReceiver extends BroadcastReceiver {
                     }
 
                     Log.d(TAG, "SMS dispatched to service: " + messageData.getSender());
+                    Log.d(TAG, "Full message: " + messageData.getMessageBody());
                 }
             }
         }
