@@ -9,6 +9,7 @@ public class MessageData {
     private long id;
 
     private String sender;
+    private String receiver;  // Add receiver field
     private String messageBody;
     private long timestamp;
     private int syncStatus; // 0 = not sent, 1 = sent successfully
@@ -28,6 +29,14 @@ public class MessageData {
 
     public void setSender(String sender) {
         this.sender = sender;
+    }
+
+    public String getReceiver() {
+        return receiver;
+    }
+
+    public void setReceiver(String receiver) {
+        this.receiver = receiver;
     }
 
     public String getMessageBody() {

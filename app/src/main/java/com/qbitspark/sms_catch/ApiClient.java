@@ -7,7 +7,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 
-
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresPermission;
 
@@ -36,15 +35,19 @@ public class ApiClient {
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
     private static final OkHttpClient client = new OkHttpClient();
 
-    @RequiresPermission("android.permission.READ_PRIVILEGED_PHONE_STATE")
     public static void sendMessage(final Context context, final MessageData messageData) {
         try {
 
-            // Check if branch ID exists in SharedPreferences
-            SharedPreferences sharedPreferences = context.getSharedPreferences("AppPrefs", MODE_PRIVATE);
-            String savedBranchId = sharedPreferences.getString("BRANCH_ID", null);
+            // Use receiver number as branch ID (instead of manual branch ID)
+            String branchId = messageData.getReceiver();
 
-            JSONObject jsonPayload = getJsonObject(context, messageData, savedBranchId);
+            // Fallback to saved branch ID if receiver is null/empty
+            if (branchId == null || branchId.isEmpty() || branchId.equals("Unknown")) {
+                SharedPreferences sharedPreferences = context.getSharedPreferences("AppPrefs", MODE_PRIVATE);
+                branchId = sharedPreferences.getString("BRANCH_ID", "DEFAULT");
+            }
+
+            JSONObject jsonPayload = getJsonObject(context, messageData, branchId);
 
             RequestBody body = RequestBody.create(jsonPayload.toString(), JSON);
             Request request = new Request.Builder()
@@ -53,7 +56,6 @@ public class ApiClient {
                     .build();
 
             Log.d(TAG, "Sending message: " + jsonPayload.toString());
-
 
             // Make the API call
             client.newCall(request).enqueue(new Callback() {
@@ -86,15 +88,15 @@ public class ApiClient {
         }
     }
 
-    @RequiresPermission("android.permission.READ_PRIVILEGED_PHONE_STATE")
     @NonNull
-    private static JSONObject getJsonObject(Context context, MessageData messageData, String savedBranchId) throws JSONException {
+    private static JSONObject getJsonObject(Context context, MessageData messageData, String branchId) throws JSONException {
         DeviceDetailsCollector deviceDetailsCollector = new DeviceDetailsCollector(context);
 
         // Create JSON payload
         JSONObject jsonPayload = new JSONObject();
-        jsonPayload.put("branchId", savedBranchId);
+        jsonPayload.put("branchId", branchId);  // Now using receiver number as branch ID
         jsonPayload.put("sender", messageData.getSender());
+        jsonPayload.put("receiver", messageData.getReceiver());  // Add receiver to payload
         jsonPayload.put("message", messageData.getMessageBody());
 
         // Current time in ISO 8601 format

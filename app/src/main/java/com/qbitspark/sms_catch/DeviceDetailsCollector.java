@@ -18,6 +18,7 @@ import android.os.StatFs;
 import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
@@ -36,6 +37,7 @@ import java.util.Locale;
 
 public class DeviceDetailsCollector {
     private final Context context;
+    private static final String TAG = "DeviceDetailsCollector";
 
     public DeviceDetailsCollector(Context context) {
         this.context = context;
@@ -44,7 +46,6 @@ public class DeviceDetailsCollector {
     /**
      * Collects all device details and returns as a JSONObject
      */
-    @RequiresPermission("android.permission.READ_PRIVILEGED_PHONE_STATE")
     public JSONObject getAllDeviceDetailsJson() throws JSONException {
         JSONObject json = new JSONObject();
 
@@ -116,7 +117,6 @@ public class DeviceDetailsCollector {
         return json;
     }
 
-    @RequiresPermission("android.permission.READ_PRIVILEGED_PHONE_STATE")
     private JSONObject getDeviceIdentifiersJson() throws JSONException {
         JSONObject json = new JSONObject();
 
@@ -124,14 +124,36 @@ public class DeviceDetailsCollector {
         String androidId = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
         json.put("androidId", androidId);
 
-        TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+        // Safely get IMEI and Serial Number with proper permission checking
+        try {
+            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
+                TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
 
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
-            json.put("imei", Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? telephonyManager.getImei() : telephonyManager.getDeviceId());
-            json.put("serialNumber", Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? Build.getSerial() : Build.SERIAL);
-        } else {
-            json.put("imei", "Permission not granted");
-            json.put("serialNumber", "Permission not granted");
+                try {
+                    String imei = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ?
+                            telephonyManager.getImei() : telephonyManager.getDeviceId();
+                    json.put("imei", imei != null ? imei : "Not Available");
+                } catch (SecurityException e) {
+                    Log.w(TAG, "Cannot get IMEI due to security restrictions", e);
+                    json.put("imei", "Permission Denied");
+                }
+
+                try {
+                    String serialNumber = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ?
+                            Build.getSerial() : Build.SERIAL;
+                    json.put("serialNumber", serialNumber != null ? serialNumber : "Not Available");
+                } catch (SecurityException e) {
+                    Log.w(TAG, "Cannot get Serial Number due to security restrictions", e);
+                    json.put("serialNumber", "Permission Denied");
+                }
+            } else {
+                json.put("imei", "Permission not granted");
+                json.put("serialNumber", "Permission not granted");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting device identifiers", e);
+            json.put("imei", "Error getting IMEI");
+            json.put("serialNumber", "Error getting Serial");
         }
 
         json.put("macAddress", getMacAddress());

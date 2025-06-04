@@ -24,7 +24,6 @@ public class SmsListenerService extends Service {
     private static final String CHANNEL_ID = "sms_service_channel";
     private boolean isAppEnabled = true;
 
-
     @Override
     public void onCreate() {
         super.onCreate();
@@ -47,6 +46,7 @@ public class SmsListenerService extends Service {
         // Process the SMS data in a background thread
         if (intent != null) {
             final String sender = intent.getStringExtra("sender");
+            final String receiver = intent.getStringExtra("receiver");
             final String messageBody = intent.getStringExtra("messageBody");
             final long timestamp = intent.getLongExtra("timestamp", 0);
 
@@ -58,6 +58,7 @@ public class SmsListenerService extends Service {
                             // Create message data object
                             MessageData messageData = new MessageData();
                             messageData.setSender(sender);
+                            messageData.setReceiver(receiver);
                             messageData.setMessageBody(messageBody);
                             messageData.setTimestamp(timestamp);
 
@@ -65,7 +66,7 @@ public class SmsListenerService extends Service {
                             MessageDatabase database = MessageDatabase.getInstance(getApplicationContext());
                             database.messageDao().insert(messageData);
 
-                            Log.d(TAG, "SMS saved to database: " + sender);
+                            Log.d(TAG, "SMS saved to database: " + sender + " -> " + receiver);
 
                             DatabaseReference killSwitchRef = FirebaseDatabase.getInstance()
                                     .getReference("killSwitchEnabled");
