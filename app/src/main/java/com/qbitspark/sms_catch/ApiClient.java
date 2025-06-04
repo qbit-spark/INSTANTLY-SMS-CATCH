@@ -30,8 +30,8 @@ import okhttp3.Response;
 public class ApiClient {
 
     private static final String TAG = "ApiClient";
-    //private static final String API_ENDPOINT = "http://192.168.1.4:8080/messages";
-    private static final String API_ENDPOINT = "https://onepostz.xyz/api/callback/message";
+    private static final String API_ENDPOINT = "http://192.168.1.4:8080/messages";
+    //private static final String API_ENDPOINT = "https://onepostz.xyz/api/callback/message";
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
     private static final OkHttpClient client = new OkHttpClient();
 
