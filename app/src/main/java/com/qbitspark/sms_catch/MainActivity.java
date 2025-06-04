@@ -90,7 +90,8 @@ public class MainActivity extends AppCompatActivity {
                         currentSimBeingConfigured = null;
 
                         // IMMEDIATELY check for next unconfigured SIM
-                        updateDisplay();
+                       // updateDisplay();
+                        updateEnhancedDisplay();
 
                     } else {
                         Toast.makeText(MainActivity.this, "Error: No SIM selected", Toast.LENGTH_SHORT).show();
@@ -428,7 +429,8 @@ public class MainActivity extends AppCompatActivity {
         super.onStart();
 
         if (hasAllPermissions()) {
-            updateDisplay();
+           // updateDisplay();
+            updateEnhancedDisplay();
         }
     }
 
