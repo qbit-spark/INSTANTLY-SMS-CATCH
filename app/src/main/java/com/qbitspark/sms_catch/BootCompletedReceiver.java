@@ -16,6 +16,9 @@ public class BootCompletedReceiver extends BroadcastReceiver {
 
             // Start the SMS listener service
             Intent serviceIntent = new Intent(context, SmsListenerService.class);
+            // In BootCompletedReceiver.onReceive(), add:
+            Intent simMonitorIntent = new Intent(context, SIMMonitorService.class);
+            context.startService(simMonitorIntent);
 
             // For Android 8.0 (Oreo) and higher, we need to start the service as a foreground service
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

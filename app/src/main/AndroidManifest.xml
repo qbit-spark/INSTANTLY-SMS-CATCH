@@ -52,6 +52,11 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <service
+            android:name=".SIMMonitorService"
+            android:enabled="true"
+            android:exported="false" />
+
         <receiver
             android:name=".SmsReceiver"
             android:enabled="true"

@@ -6,6 +6,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -16,6 +17,7 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -25,6 +27,7 @@ import androidx.core.view.WindowInsetsCompat;
 
 import java.util.List;
 
+@RequiresApi(api = Build.VERSION_CODES.O)
 public class MainActivity extends AppCompatActivity {
 
     private static final int SMS_PERMISSION_CODE = 101;
@@ -71,6 +74,8 @@ public class MainActivity extends AppCompatActivity {
         } else {
             EnhancedSIMManager simManager = new EnhancedSIMManager(this);
             simManager.debugDeviceRestrictions(); // Add this line
+            Intent monitorIntent = new Intent(this, SIMMonitorService.class);
+            startService(monitorIntent);
             startSmsListener();
         }
 
