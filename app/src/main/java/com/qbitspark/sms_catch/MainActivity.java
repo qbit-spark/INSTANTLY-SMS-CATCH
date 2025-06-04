@@ -69,6 +69,8 @@ public class MainActivity extends AppCompatActivity {
         if (!hasAllPermissions()) {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, SMS_PERMISSION_CODE);
         } else {
+            EnhancedSIMManager simManager = new EnhancedSIMManager(this);
+            simManager.debugDeviceRestrictions(); // Add this line
             startSmsListener();
         }
 

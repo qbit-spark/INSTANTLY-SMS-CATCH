@@ -1,11 +1,18 @@
 package com.qbitspark.sms_catch;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyManager;
 import android.util.Log;
+
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -126,42 +133,102 @@ public class EnhancedSIMManager {
         return result;
     }
 
+
+
+    // Replace the getCurrentSIMs() method in EnhancedSIMManager.java with this enhanced version:
+
     /**
-     * Get currently active SIMs from system
+     * Get currently active SIMs from system with enhanced debugging
      */
     private List<SIMInfo> getCurrentSIMs() {
         List<SIMInfo> currentSIMs = new ArrayList<>();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
             try {
+                // Check permissions first
+                if (ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    Log.e(TAG, "❌ READ_PHONE_STATE permission not granted!");
+                    return currentSIMs;
+                }
+
+                Log.d(TAG, "✅ READ_PHONE_STATE permission granted");
+
                 SubscriptionManager subscriptionManager = SubscriptionManager.from(context);
                 List<SubscriptionInfo> subscriptions = subscriptionManager.getActiveSubscriptionInfoList();
 
-                if (subscriptions != null) {
-                    for (SubscriptionInfo subInfo : subscriptions) {
-                        SIMInfo simInfo = new SIMInfo();
-                        simInfo.iccid = subInfo.getIccId();
-                        simInfo.carrierName = subInfo.getCarrierName().toString();
-                        simInfo.subscriptionId = subInfo.getSubscriptionId();
-                        simInfo.slotIndex = subInfo.getSimSlotIndex();
-                        simInfo.detectedNumber = subInfo.getNumber();
-                        simInfo.lastSeen = System.currentTimeMillis();
-                        simInfo.isActive = true;
-
-                        currentSIMs.add(simInfo);
-
-                        Log.d(TAG, "Detected SIM: ICCID=" + maskICCID(simInfo.iccid) +
-                                ", Carrier=" + simInfo.carrierName +
-                                ", Slot=" + simInfo.slotIndex);
-                    }
+                if (subscriptions == null) {
+                    Log.w(TAG, "⚠️ No active subscriptions found");
+                    return currentSIMs;
                 }
+
+                Log.d(TAG, "📱 Found " + subscriptions.size() + " active subscription(s)");
+
+                for (int i = 0; i < subscriptions.size(); i++) {
+                    SubscriptionInfo subInfo = subscriptions.get(i);
+
+                    Log.d(TAG, "=== SIM " + (i + 1) + " Details ===");
+                    Log.d(TAG, "Subscription ID: " + subInfo.getSubscriptionId());
+                    Log.d(TAG, "Carrier Name: " + subInfo.getCarrierName());
+                    Log.d(TAG, "Slot Index: " + subInfo.getSimSlotIndex());
+                    Log.d(TAG, "Display Name: " + subInfo.getDisplayName());
+                    Log.d(TAG, "Phone Number: " + subInfo.getNumber());
+
+                    // Debug ICCID retrieval
+                    String iccid = subInfo.getIccId();
+                    Log.d(TAG, "Raw ICCID: '" + iccid + "'");
+                    Log.d(TAG, "ICCID Length: " + (iccid != null ? iccid.length() : "null"));
+                    Log.d(TAG, "ICCID isEmpty: " + (iccid == null || iccid.isEmpty()));
+
+                    SIMInfo simInfo = new SIMInfo();
+
+                    // Handle empty ICCID by creating fallback identifier
+                    if (iccid == null || iccid.isEmpty()) {
+                        Log.w(TAG, "⚠️ ICCID is empty! Creating fallback identifier");
+
+                        // Create fallback ICCID using subscription info
+                        String fallbackICCID = "FALLBACK_" +
+                                subInfo.getSubscriptionId() + "_" +
+                                subInfo.getCarrierName().toString().replaceAll("[^A-Za-z0-9]", "") + "_" +
+                                subInfo.getSimSlotIndex();
+
+                        Log.d(TAG, "💡 Created fallback ICCID: " + fallbackICCID);
+                        simInfo.iccid = fallbackICCID;
+                    } else {
+                        Log.d(TAG, "✅ Valid ICCID found: " + iccid);
+                        simInfo.iccid = iccid;
+                    }
+
+                    simInfo.carrierName = subInfo.getCarrierName().toString();
+                    simInfo.subscriptionId = subInfo.getSubscriptionId();
+                    simInfo.slotIndex = subInfo.getSimSlotIndex();
+                    simInfo.detectedNumber = subInfo.getNumber();
+                    simInfo.lastSeen = System.currentTimeMillis();
+                    simInfo.isActive = true;
+
+                    currentSIMs.add(simInfo);
+
+                    Log.d(TAG, "✅ SIM Added: ICCID=" + simInfo.iccid +
+                            ", Carrier=" + simInfo.carrierName +
+                            ", Slot=" + simInfo.slotIndex);
+                    Log.d(TAG, "========================");
+                }
+
+                Log.d(TAG, "🎯 Total SIMs processed: " + currentSIMs.size());
+
             } catch (SecurityException e) {
-                Log.e(TAG, "Permission denied for SIM detection", e);
+                Log.e(TAG, "🔒 Security exception during SIM detection", e);
+            } catch (Exception e) {
+                Log.e(TAG, "💥 Unexpected error during SIM detection", e);
             }
+        } else {
+            Log.e(TAG, "❌ Android version too old for SubscriptionManager (API < 22)");
         }
 
         return currentSIMs;
     }
+
+
 
     /**
      * Save SIM configuration with phone number
@@ -188,7 +255,7 @@ public class EnhancedSIMManager {
         }
 
         saveSIMs(sims);
-        Log.d(TAG, "Saved phone number for ICCID: " + maskICCID(iccid));
+        Log.d(TAG, "Saved phone number for ICCID: " + iccid);
     }
 
     /**
@@ -309,8 +376,155 @@ public class EnhancedSIMManager {
         return sims;
     }
 
-    private String maskICCID(String iccid) {
-        if (iccid == null || iccid.length() < 8) return iccid;
-        return iccid.substring(0, 4) + "***" + iccid.substring(iccid.length() - 4);
+//    private String maskICCID(String iccid) {
+//        if (iccid == null || iccid.length() < 8) return iccid;
+//        return iccid.substring(0, 4) + "***" + iccid.substring(iccid.length() - 4);
+//    }
+
+
+
+    // Add this method to EnhancedSIMManager.java to debug device restrictions
+
+    /**
+     * Debug device and Android version restrictions
+     */
+    public void debugDeviceRestrictions() {
+        Log.d(TAG, "=== DEVICE DEBUG INFO ===");
+        Log.d(TAG, "📱 Device: " + Build.MANUFACTURER + " " + Build.MODEL);
+        Log.d(TAG, "🤖 Android Version: " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")");
+        Log.d(TAG, "🔧 Build Type: " + Build.TYPE);
+        Log.d(TAG, "🏷️ Build Tags: " + Build.TAGS);
+
+        // Check specific permission statuses
+        String[] permissions = {
+                Manifest.permission.READ_PHONE_STATE,
+                Manifest.permission.READ_PHONE_NUMBERS,
+                Manifest.permission.READ_SMS,
+                "android.permission.READ_PRIVILEGED_PHONE_STATE" // System permission
+        };
+
+        for (String permission : permissions) {
+            int status = ContextCompat.checkSelfPermission(context, permission);
+            Log.d(TAG, "🔐 " + permission + ": " +
+                    (status == PackageManager.PERMISSION_GRANTED ? "✅ GRANTED" : "❌ DENIED"));
+        }
+
+        // Check if we can access TelephonyManager
+        try {
+            TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+            if (tm != null) {
+                Log.d(TAG, "📡 TelephonyManager available");
+
+                // Try different methods to get ICCID
+                tryAlternativeICCIDMethods(tm);
+
+            } else {
+                Log.e(TAG, "❌ TelephonyManager is null!");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "💥 Error accessing TelephonyManager", e);
+        }
+
+        Log.d(TAG, "========================");
+    }
+
+    /**
+     * Try alternative methods to get ICCID
+     */
+    private void tryAlternativeICCIDMethods(TelephonyManager tm) {
+        Log.d(TAG, "🔍 Trying alternative ICCID methods:");
+
+        // Method 1: Direct TelephonyManager
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // Android 10+ method
+                Log.d(TAG, "📱 Trying Android 10+ method...");
+                String simSerialNumber = tm.getSimSerialNumber();
+                Log.d(TAG, "📋 getSimSerialNumber(): '" + simSerialNumber + "'");
+            }
+        } catch (SecurityException e) {
+            Log.w(TAG, "🔒 getSimSerialNumber() blocked: " + e.getMessage());
+        } catch (Exception e) {
+            Log.e(TAG, "💥 getSimSerialNumber() error: " + e.getMessage());
+        }
+
+        // Method 2: Legacy method
+        try {
+            Log.d(TAG, "📱 Trying legacy getDeviceId()...");
+            String deviceId = tm.getDeviceId();
+            Log.d(TAG, "📋 getDeviceId(): '" + deviceId + "'");
+        } catch (SecurityException e) {
+            Log.w(TAG, "🔒 getDeviceId() blocked: " + e.getMessage());
+        } catch (Exception e) {
+            Log.e(TAG, "💥 getDeviceId() error: " + e.getMessage());
+        }
+
+        // Method 3: Check subscription-specific TelephonyManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                // Check permission first
+                if (ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    Log.w(TAG, "🔒 READ_PHONE_STATE permission not granted for subscription-specific check");
+                    return;
+                }
+
+                SubscriptionManager subManager = SubscriptionManager.from(context);
+                List<SubscriptionInfo> subscriptions = subManager.getActiveSubscriptionInfoList();
+
+                if (subscriptions != null) {
+                    for (SubscriptionInfo subInfo : subscriptions) {
+                        Log.d(TAG, "🔍 Trying subscription-specific TelephonyManager for sub " + subInfo.getSubscriptionId());
+
+                        try {
+                            TelephonyManager subTm = tm.createForSubscriptionId(subInfo.getSubscriptionId());
+
+                            if (subTm != null) {
+                                try {
+                                    String subSimSerial = subTm.getSimSerialNumber();
+                                    Log.d(TAG, "📋 Sub-specific getSimSerialNumber(): '" + subSimSerial + "'");
+                                } catch (SecurityException e) {
+                                    Log.w(TAG, "🔒 Sub-specific getSimSerialNumber() blocked: " + e.getMessage());
+                                } catch (Exception e) {
+                                    Log.e(TAG, "💥 Sub-specific getSimSerialNumber() error: " + e.getMessage());
+                                }
+                            } else {
+                                Log.w(TAG, "⚠️ Subscription-specific TelephonyManager is null for sub " + subInfo.getSubscriptionId());
+                            }
+                        } catch (Exception e) {
+                            Log.e(TAG, "💥 Error creating subscription-specific TelephonyManager: " + e.getMessage());
+                        }
+                    }
+                } else {
+                    Log.w(TAG, "⚠️ No subscriptions available for subscription-specific check");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "💥 Subscription-specific method error: " + e.getMessage());
+            }
+        }
+        // Method 4: Check if device is rooted/system app
+        checkSystemAppStatus();
+    }
+
+    /**
+     * Check if app has system-level access
+     */
+    private void checkSystemAppStatus() {
+        try {
+            ApplicationInfo appInfo = context.getApplicationInfo();
+            boolean isSystemApp = (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
+            boolean isUpdatedSystemApp = (appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
+
+            Log.d(TAG, "🏛️ Is System App: " + isSystemApp);
+            Log.d(TAG, "🔄 Is Updated System App: " + isUpdatedSystemApp);
+            Log.d(TAG, "📦 App installed in: " + appInfo.sourceDir);
+
+            if (!isSystemApp && !isUpdatedSystemApp) {
+                Log.w(TAG, "⚠️ Regular user app - ICCID access may be restricted");
+                Log.i(TAG, "💡 This explains why ICCID is empty on your device");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "💥 Error checking system app status", e);
+        }
     }
 }
