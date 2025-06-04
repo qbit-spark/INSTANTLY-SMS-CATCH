@@ -5,12 +5,8 @@ import static android.content.ContentValues.TAG;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
-import android.telephony.SubscriptionInfo;
-import android.telephony.SubscriptionManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -41,7 +37,7 @@ public class MainActivity extends AppCompatActivity {
             Manifest.permission.READ_PHONE_NUMBERS
     };
 
-    private String currentSimBeingConfigured = null; // Track which SIM we're configuring
+    private String currentSimBeingConfigured = null; // Now stores ICCID
 
     @SuppressLint("MissingInflatedId")
     @Override
@@ -61,49 +57,13 @@ public class MainActivity extends AppCompatActivity {
         });
 
         EditText branchIdInput = findViewById(R.id.branchIdInput);
-        Button saveBranchButton = findViewById(R.id.saveBranchButton);
         TextView statusTextView = findViewById(R.id.statusTextView);
 
         // Set up input field for phone numbers
         setupPhoneNumberInput(branchIdInput);
 
-        saveBranchButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String phoneNumber = branchIdInput.getText().toString().trim();
-
-                if (phoneNumber != null && !phoneNumber.isEmpty()) {
-
-                    if (currentSimBeingConfigured != null) {
-                        // Save for the specific SIM being configured
-                        SharedPreferences simPrefs = getSharedPreferences("SIM_PHONE_NUMBERS", MODE_PRIVATE);
-                        SharedPreferences.Editor simEditor = simPrefs.edit();
-                        simEditor.putString(currentSimBeingConfigured, phoneNumber);
-                        simEditor.apply();
-
-                        Toast.makeText(MainActivity.this,
-                                "✅ Saved " + phoneNumber + " for " + currentSimBeingConfigured,
-                                Toast.LENGTH_LONG).show();
-
-                        // Clear input for next SIM
-                        branchIdInput.setText("");
-                        currentSimBeingConfigured = null;
-
-                        // IMMEDIATELY check for next unconfigured SIM
-                       // updateDisplay();
-                        updateEnhancedDisplay();
-
-                    } else {
-                        Toast.makeText(MainActivity.this, "Error: No SIM selected", Toast.LENGTH_SHORT).show();
-                    }
-
-                } else {
-                    Toast.makeText(MainActivity.this,
-                            "❌ Phone number is required! Cannot skip SIM configuration.",
-                            Toast.LENGTH_LONG).show();
-                }
-            }
-        });
+        // Use ONLY the enhanced save button setup
+        setupEnhancedSaveButton();
 
         // Check and request all required permissions
         if (!hasAllPermissions()) {
@@ -239,245 +199,6 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
-    private void updateDisplay() {
-        TextView statusTextView = findViewById(R.id.statusTextView);
-        EditText branchIdInput = findViewById(R.id.branchIdInput);
-        Button saveBranchButton = findViewById(R.id.saveBranchButton);
-
-        // Get all active SIMs and their configuration status
-        SimConfigStatus configStatus = getSimConfigurationStatus();
-
-        if (configStatus.hasUnconfiguredSims()) {
-            // FORCE configuration of next unconfigured SIM - NO SKIPPING ALLOWED
-            currentSimBeingConfigured = configStatus.getNextUnconfiguredSim();
-
-            statusTextView.setVisibility(View.VISIBLE);
-            branchIdInput.setVisibility(View.VISIBLE);
-            saveBranchButton.setVisibility(View.VISIBLE);
-
-            // Show current progress and force configuration
-            String progressMessage = "📱 SIM CONFIGURATION REQUIRED\n\n" +
-                    "Progress: " + configStatus.getConfiguredCount() + "/" + configStatus.getTotalCount() + " SIMs configured\n\n" +
-                    "⚠️ ALL SIMs must be configured to continue\n" +
-                    "Currently configuring: " + currentSimBeingConfigured + "\n\n";
-
-            if (configStatus.getConfiguredCount() > 0) {
-                progressMessage += "✅ Already configured:\n" + configStatus.getConfiguredSimsList() + "\n";
-            }
-
-            statusTextView.setText(progressMessage);
-            branchIdInput.setHint("📞 Enter 10-digit number starting with 0 (e.g., 0745051250)");
-            saveBranchButton.setText("💾 SAVE FOR " + currentSimBeingConfigured);
-
-            // Set input type to numeric only
-            branchIdInput.setInputType(android.text.InputType.TYPE_CLASS_PHONE);
-
-            // Make input field mandatory
-            branchIdInput.setError(null);
-
-        } else {
-            // ALL SIMs are configured - show success status
-            currentSimBeingConfigured = null;
-
-            statusTextView.setVisibility(View.VISIBLE);
-            branchIdInput.setVisibility(View.GONE);
-            saveBranchButton.setVisibility(View.GONE);
-
-            statusTextView.setText("🎉 ALL SIMs CONFIGURED SUCCESSFULLY!\n\n" +
-                    "Everything run smoothly..\n\n" +
-                    configStatus.getAllSimsStatusDisplay());
-        }
-    }
-
-    // Helper class to track SIM configuration status
-    private class SimConfigStatus {
-        private int totalSims = 0;
-        private int configuredSims = 0;
-        private String nextUnconfiguredSim = null;
-        private StringBuilder configuredList = new StringBuilder();
-        private StringBuilder allSimsStatus = new StringBuilder();
-
-        public boolean hasUnconfiguredSims() {
-            return nextUnconfiguredSim != null;
-        }
-
-        public String getNextUnconfiguredSim() {
-            return nextUnconfiguredSim;
-        }
-
-        public int getTotalCount() {
-            return totalSims;
-        }
-
-        public int getConfiguredCount() {
-            return configuredSims;
-        }
-
-        public String getConfiguredSimsList() {
-            return configuredList.toString();
-        }
-
-        public String getAllSimsStatusDisplay() {
-            return allSimsStatus.toString();
-        }
-    }
-
-    private SimConfigStatus getSimConfigurationStatus() {
-        SimConfigStatus status = new SimConfigStatus();
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
-            try {
-                SubscriptionManager subscriptionManager = SubscriptionManager.from(this);
-                List<SubscriptionInfo> subscriptions = subscriptionManager.getActiveSubscriptionInfoList();
-
-                if (subscriptions != null && !subscriptions.isEmpty()) {
-                    SharedPreferences simPrefs = getSharedPreferences("SIM_PHONE_NUMBERS", MODE_PRIVATE);
-                    status.totalSims = subscriptions.size();
-
-                    for (SubscriptionInfo subInfo : subscriptions) {
-                        String carrierName = subInfo.getCarrierName().toString();
-                        int subId = subInfo.getSubscriptionId();
-                        String simKey = carrierName + "_SIM_" + subId;
-
-                        String savedNumber = simPrefs.getString(simKey, null);
-                        if (savedNumber != null && !savedNumber.isEmpty()) {
-                            // This SIM is configured
-                            status.configuredSims++;
-                            status.configuredList.append("   📱 ").append(simKey).append(": ").append(savedNumber).append("\n");
-                            status.allSimsStatus.append("✅ ").append(simKey).append(": ").append(savedNumber).append("\n");
-                            status.allSimsStatus.append("   Branch ID: ").append(savedNumber).append("_").append(simKey).append("\n\n");
-                        } else {
-                            // This SIM needs configuration
-                            if (status.nextUnconfiguredSim == null) {
-                                status.nextUnconfiguredSim = simKey; // First unconfigured SIM
-                            }
-                            status.allSimsStatus.append("❌ ").append(simKey).append(": NOT CONFIGURED\n\n");
-                        }
-                    }
-                }
-            } catch (SecurityException e) {
-                Log.e(TAG, "Cannot access SIM information", e);
-            }
-        }
-
-        return status;
-    }
-
-    private boolean hasAllPermissions() {
-        for (String permission : REQUIRED_PERMISSIONS) {
-            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == SMS_PERMISSION_CODE) {
-            boolean allPermissionsGranted = true;
-            for (int result : grantResults) {
-                if (result != PackageManager.PERMISSION_GRANTED) {
-                    allPermissionsGranted = false;
-                    break;
-                }
-            }
-
-            if (allPermissionsGranted) {
-                startSmsListener();
-                updateDisplay();
-            } else {
-                Toast.makeText(this, "All permissions are required for this app to work",
-                        Toast.LENGTH_LONG).show();
-            }
-        }
-    }
-
-    private void startSmsListener() {
-        Intent serviceIntent = new Intent(this, SmsListenerService.class);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent);
-        } else {
-            startService(serviceIntent);
-        }
-    }
-
-    @Override
-    public void onBackPressed() {
-        // Prevent user from leaving if SIMs are not configured
-        SimConfigStatus configStatus = getSimConfigurationStatus();
-
-        if (configStatus.hasUnconfiguredSims()) {
-            Toast.makeText(this,
-                    "⚠️ Cannot exit! Please configure all " + configStatus.getTotalCount() + " SIM cards first.\n" +
-                            "Progress: " + configStatus.getConfiguredCount() + "/" + configStatus.getTotalCount() + " completed",
-                    Toast.LENGTH_LONG).show();
-
-            // Do NOT call super.onBackPressed() - prevent exit
-            return;
-        }
-
-        // All SIMs configured, allow normal back behavior
-        super.onBackPressed();
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-
-        if (hasAllPermissions()) {
-           // updateDisplay();
-            updateEnhancedDisplay();
-        }
-    }
-
-    /**
-     * Enhanced SIM configuration status using ICCID tracking
-     */
-
-    private SimConfigStatus getEnhancedSimConfigurationStatus() {
-        SimConfigStatus status = new SimConfigStatus();
-        EnhancedSIMManager simManager = new EnhancedSIMManager(this);
-
-        // Detect any SIM changes first
-        EnhancedSIMManager.SwapDetectionResult swapResult = simManager.detectSIMChanges();
-
-        if (swapResult.hasChanges()) {
-            Log.i("MainActivity", "SIM changes detected: " + swapResult.getChangesSummary());
-            // Show user the changes
-            showSIMChangesAlert(swapResult);
-        }
-
-        // Get current SIM status
-        List<EnhancedSIMManager.SIMInfo> activeSIMs = swapResult.activeSIMs;
-        status.totalSims = activeSIMs.size();
-
-        for (EnhancedSIMManager.SIMInfo simInfo : activeSIMs) {
-            if (simInfo.userPhoneNumber != null && !simInfo.userPhoneNumber.isEmpty()) {
-                // This SIM is configured
-                status.configuredSims++;
-                status.configuredList.append("   📱 ").append(simInfo.getDisplayName()).append("\n");
-                status.allSimsStatus.append("✅ ").append(simInfo.getDisplayName()).append("\n");
-                status.allSimsStatus.append("   ICCID: ").append(maskICCID(simInfo.iccid)).append("\n");
-                status.allSimsStatus.append("   Slot: ").append(simInfo.slotIndex).append("\n\n");
-            } else {
-                // This SIM needs configuration
-                if (status.nextUnconfiguredSim == null) {
-                    status.nextUnconfiguredSim = simInfo.carrierName + "_SLOT" + simInfo.slotIndex;
-                    currentSimBeingConfigured = simInfo.iccid; // Store ICCID instead
-                }
-                status.allSimsStatus.append("❌ ").append(simInfo.carrierName)
-                        .append(" (Slot ").append(simInfo.slotIndex).append("): NOT CONFIGURED\n");
-                status.allSimsStatus.append("   ICCID: ").append(maskICCID(simInfo.iccid)).append("\n\n");
-            }
-        }
-
-        return status;
-    }
-
     /**
      * Enhanced save button click handler
      */
@@ -586,7 +307,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Replace your existing onClick handler with this enhanced version
+     * Enhanced save button setup - ONLY enhanced version
      */
     private void setupEnhancedSaveButton() {
         Button saveBranchButton = findViewById(R.id.saveBranchButton);
@@ -602,5 +323,72 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    private boolean hasAllPermissions() {
+        for (String permission : REQUIRED_PERMISSIONS) {
+            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == SMS_PERMISSION_CODE) {
+            boolean allPermissionsGranted = true;
+            for (int result : grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    allPermissionsGranted = false;
+                    break;
+                }
+            }
+
+            if (allPermissionsGranted) {
+                startSmsListener();
+                updateEnhancedDisplay(); // Use enhanced version
+            } else {
+                Toast.makeText(this, "All permissions are required for this app to work",
+                        Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    private void startSmsListener() {
+        Intent serviceIntent = new Intent(this, SmsListenerService.class);
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent);
+        } else {
+            startService(serviceIntent);
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        // Use enhanced configuration status
+        EnhancedSIMManager simManager = new EnhancedSIMManager(this);
+
+        if (!simManager.areAllSIMsConfigured()) {
+            Toast.makeText(this,
+                    "⚠️ Cannot exit! Please configure all SIM cards first.",
+                    Toast.LENGTH_LONG).show();
+            return; // Prevent exit
+        }
+
+        // All SIMs configured, allow normal back behavior
+        super.onBackPressed();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        if (hasAllPermissions()) {
+            updateEnhancedDisplay(); // Use enhanced version
+        }
     }
 }
