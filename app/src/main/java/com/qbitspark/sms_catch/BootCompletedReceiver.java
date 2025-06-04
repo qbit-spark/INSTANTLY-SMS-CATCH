@@ -7,6 +7,7 @@ import android.os.Build;
 import android.util.Log;
 
 public class BootCompletedReceiver extends BroadcastReceiver {
+
     private static final String TAG = "BootCompletedReceiver";
 
     @Override
