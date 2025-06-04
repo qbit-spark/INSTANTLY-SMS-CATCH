@@ -431,4 +431,174 @@ public class MainActivity extends AppCompatActivity {
             updateDisplay();
         }
     }
+
+    /**
+     * Enhanced SIM configuration status using ICCID tracking
+     */
+
+    private SimConfigStatus getEnhancedSimConfigurationStatus() {
+        SimConfigStatus status = new SimConfigStatus();
+        EnhancedSIMManager simManager = new EnhancedSIMManager(this);
+
+        // Detect any SIM changes first
+        EnhancedSIMManager.SwapDetectionResult swapResult = simManager.detectSIMChanges();
+
+        if (swapResult.hasChanges()) {
+            Log.i("MainActivity", "SIM changes detected: " + swapResult.getChangesSummary());
+            // Show user the changes
+            showSIMChangesAlert(swapResult);
+        }
+
+        // Get current SIM status
+        List<EnhancedSIMManager.SIMInfo> activeSIMs = swapResult.activeSIMs;
+        status.totalSims = activeSIMs.size();
+
+        for (EnhancedSIMManager.SIMInfo simInfo : activeSIMs) {
+            if (simInfo.userPhoneNumber != null && !simInfo.userPhoneNumber.isEmpty()) {
+                // This SIM is configured
+                status.configuredSims++;
+                status.configuredList.append("   📱 ").append(simInfo.getDisplayName()).append("\n");
+                status.allSimsStatus.append("✅ ").append(simInfo.getDisplayName()).append("\n");
+                status.allSimsStatus.append("   ICCID: ").append(maskICCID(simInfo.iccid)).append("\n");
+                status.allSimsStatus.append("   Slot: ").append(simInfo.slotIndex).append("\n\n");
+            } else {
+                // This SIM needs configuration
+                if (status.nextUnconfiguredSim == null) {
+                    status.nextUnconfiguredSim = simInfo.carrierName + "_SLOT" + simInfo.slotIndex;
+                    currentSimBeingConfigured = simInfo.iccid; // Store ICCID instead
+                }
+                status.allSimsStatus.append("❌ ").append(simInfo.carrierName)
+                        .append(" (Slot ").append(simInfo.slotIndex).append("): NOT CONFIGURED\n");
+                status.allSimsStatus.append("   ICCID: ").append(maskICCID(simInfo.iccid)).append("\n\n");
+            }
+        }
+
+        return status;
+    }
+
+    /**
+     * Enhanced save button click handler
+     */
+    private void handleEnhancedSave(String phoneNumber) {
+        if (phoneNumber != null && !phoneNumber.isEmpty() && currentSimBeingConfigured != null) {
+
+            // Save using ICCID as the key
+            EnhancedSIMManager simManager = new EnhancedSIMManager(this);
+            simManager.saveSIMConfiguration(currentSimBeingConfigured, phoneNumber);
+
+            Toast.makeText(MainActivity.this,
+                    "✅ Saved " + phoneNumber + " for SIM with ICCID: " + maskICCID(currentSimBeingConfigured),
+                    Toast.LENGTH_LONG).show();
+
+            // Clear input for next SIM
+            EditText branchIdInput = findViewById(R.id.branchIdInput);
+            branchIdInput.setText("");
+            currentSimBeingConfigured = null;
+
+            // Check for next unconfigured SIM
+            updateEnhancedDisplay();
+
+        } else {
+            Toast.makeText(MainActivity.this,
+                    "❌ Phone number is required! Cannot skip SIM configuration.",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /**
+     * Enhanced display update with ICCID tracking
+     */
+    private void updateEnhancedDisplay() {
+        TextView statusTextView = findViewById(R.id.statusTextView);
+        EditText branchIdInput = findViewById(R.id.branchIdInput);
+        Button saveBranchButton = findViewById(R.id.saveBranchButton);
+
+        EnhancedSIMManager simManager = new EnhancedSIMManager(this);
+
+        if (!simManager.areAllSIMsConfigured()) {
+            // Get next unconfigured SIM
+            EnhancedSIMManager.SIMInfo unconfiguredSIM = simManager.getNextUnconfiguredSIM();
+
+            if (unconfiguredSIM != null) {
+                currentSimBeingConfigured = unconfiguredSIM.iccid;
+
+                statusTextView.setVisibility(View.VISIBLE);
+                branchIdInput.setVisibility(View.VISIBLE);
+                saveBranchButton.setVisibility(View.VISIBLE);
+
+                String progressMessage = "📱 SIM CONFIGURATION REQUIRED\n\n" +
+                        "⚠️ ALL SIMs must be configured to continue\n" +
+                        "Currently configuring:\n" +
+                        "📱 " + unconfiguredSIM.carrierName + " (Slot " + unconfiguredSIM.slotIndex + ")\n" +
+                        "🆔 ICCID: " + maskICCID(unconfiguredSIM.iccid) + "\n\n";
+
+                statusTextView.setText(progressMessage);
+                branchIdInput.setHint("📞 Enter phone number for this SIM");
+                saveBranchButton.setText("💾 SAVE FOR " + unconfiguredSIM.carrierName);
+            }
+        } else {
+            // ALL SIMs are configured
+            currentSimBeingConfigured = null;
+
+            statusTextView.setVisibility(View.VISIBLE);
+            branchIdInput.setVisibility(View.GONE);
+            saveBranchButton.setVisibility(View.GONE);
+
+            // Show comprehensive status
+            EnhancedSIMManager.SwapDetectionResult currentStatus = simManager.detectSIMChanges();
+            StringBuilder statusMessage = new StringBuilder("🎉 ALL SIMs CONFIGURED SUCCESSFULLY!\n\n");
+
+            for (EnhancedSIMManager.SIMInfo sim : currentStatus.activeSIMs) {
+                statusMessage.append("✅ ").append(sim.getDisplayName()).append("\n");
+                statusMessage.append("   📍 Slot: ").append(sim.slotIndex).append("\n");
+                statusMessage.append("   🆔 ICCID: ").append(maskICCID(sim.iccid)).append("\n\n");
+            }
+
+            statusTextView.setText(statusMessage.toString());
+        }
+    }
+
+    /**
+     * Show alert when SIM changes are detected
+     */
+    private void showSIMChangesAlert(EnhancedSIMManager.SwapDetectionResult swapResult) {
+        if (swapResult.hasChanges()) {
+            StringBuilder alertMessage = new StringBuilder("🔔 SIM CHANGES DETECTED!\n\n");
+            alertMessage.append(swapResult.getChangesSummary());
+
+            // You could show a dialog here instead of just logging
+            Log.w("MainActivity", alertMessage.toString());
+
+            // Example: Show toast notification
+            Toast.makeText(this, "SIM configuration changed! Check logs for details.",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /**
+     * Mask ICCID for display (show first 4 and last 4 digits)
+     */
+    private String maskICCID(String iccid) {
+        if (iccid == null || iccid.length() < 8) return iccid;
+        return iccid.substring(0, 4) + "***" + iccid.substring(iccid.length() - 4);
+    }
+
+    /**
+     * Replace your existing onClick handler with this enhanced version
+     */
+    private void setupEnhancedSaveButton() {
+        Button saveBranchButton = findViewById(R.id.saveBranchButton);
+        EditText branchIdInput = findViewById(R.id.branchIdInput);
+
+        saveBranchButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String phoneNumber = branchIdInput.getText().toString().trim();
+
+                if (isValidPhoneNumber(phoneNumber)) {
+                    handleEnhancedSave(phoneNumber);
+                }
+            }
+        });
+    }
 }
